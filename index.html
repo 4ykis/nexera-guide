@@ -13,11 +13,11 @@
 <meta property="og:url" content="https://4ykis.github.io/nexera-guide/">
 <meta property="og:title" content="Nexera — Довідник Мандрівника">
 <meta property="og:description" content="Компендіум чуток, торгівлі й проповіді про світ Nexera: суходоли, боги, раси й дев'ятнадцять держав.">
-<meta property="og:image" content="https://4ykis.github.io/nexera-guide/map.png">
+<meta property="og:image" content="https://4ykis.github.io/nexera-guide/map.webp">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Nexera — Довідник Мандрівника">
 <meta name="twitter:description" content="Компендіум чуток, торгівлі й проповіді про світ Nexera: суходоли, боги, раси й дев'ятнадцять держав.">
-<meta name="twitter:image" content="https://4ykis.github.io/nexera-guide/map.png">
+<meta name="twitter:image" content="https://4ykis.github.io/nexera-guide/map.webp">
 <title>Nexera — Довідник Мандрівника</title>
 <meta name="description" content="Компендіум чуток, торгівлі й проповіді про світ Nexera: суходоли, боги, раси й дев'ятнадцять держав.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,6 +79,7 @@
 
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
+  html, body{ max-width:100%; overflow-x:hidden; }
   body{
     margin:0;
     background:var(--bg);
@@ -1267,7 +1268,7 @@
       <span class="spinner"></span>
       <span class="map-loader-text">Завантаження карти…</span>
     </div>
-    <img id="mapImg" loading="eager" decoding="async" fetchpriority="high" src="map.png" alt="Політична карта світу Nexera з трьома суходолами та дев'ятнадцятьма державами">
+    <img id="mapImg" decoding="async" data-src="map.webp" alt="Політична карта світу Nexera з трьома суходолами та дев'ятнадцятьма державами">
   </div>
   <div class="map-controls">
     <button id="zoomOut" aria-label="Зменшити">−</button>
@@ -1349,10 +1350,10 @@
   var mapClose = document.getElementById('mapClose');
   var mapOpenFromDrawer = document.getElementById('mapOpenFromDrawer');
 
-  /* The map is embedded inline, so its bytes are already in the page —
-     "preloading" here means decoding it off-screen as soon as possible
-     so the modal never waits on it; the loader only shows if a viewer
-     opens the map before that decode has finished. */
+  /* The map ships as its own (multi-MB) file, so it's never fetched
+     until a viewer actually opens the map — no point spending mobile
+     data on it up front. The loader shows for however long that first
+     fetch + decode takes; later opens reuse the browser's cache. */
   var mapReady = false;
   function markMapReady(){
     if(mapReady) return;
@@ -1362,19 +1363,18 @@
       fitMap();
     }
   }
-  function armMapPreload(){
+  mapImg.addEventListener('load', function(){
     if(typeof mapImg.decode === 'function'){
-      mapImg.decode().then(markMapReady).catch(function(){
-        if(mapImg.complete){ markMapReady(); }
-        else { mapImg.addEventListener('load', markMapReady, {once:true}); }
-      });
-    } else if(mapImg.complete){
-      markMapReady();
+      mapImg.decode().then(markMapReady).catch(markMapReady);
     } else {
-      mapImg.addEventListener('load', markMapReady, {once:true});
+      markMapReady();
+    }
+  });
+  function ensureMapLoading(){
+    if(!mapImg.getAttribute('src')){
+      mapImg.src = mapImg.dataset.src;
     }
   }
-  armMapPreload();
 
   var scale = 1, minScale = 1, maxScale = 5, tx = 0, ty = 0;
   var dragging = false, lastX = 0, lastY = 0;
@@ -1420,6 +1420,7 @@
     closeDrawer();
     mapModal.classList.add('open');
     document.body.style.overflow = 'hidden';
+    ensureMapLoading();
     if(mapReady){
       mapLoader.classList.remove('show');
       fitMap();
